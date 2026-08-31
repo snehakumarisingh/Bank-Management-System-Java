@@ -12,7 +12,7 @@ public class DBConnection {
 
     private static final String URL = "jdbc:mysql://localhost:3306/bank_management";
     private static final String USER = "root";       // Change to your MySQL username
-    private static final String PASSWORD = "root";   // Change to your MySQL password
+    private static final String PASSWORD = "manager";   // Change to your MySQL password
 
     private static Connection connection = null;
 

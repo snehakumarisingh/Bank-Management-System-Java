@@ -1,0 +1,5 @@
+# Java compiled files
+*.class
+
+# MySQL Connector JAR
+lib/*.jar
