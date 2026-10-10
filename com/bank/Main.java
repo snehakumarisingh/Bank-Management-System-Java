@@ -5,14 +5,6 @@ import com.bank.service.BankService;
 
 import java.util.List;
 import java.util.Scanner;
-
-/**
- * Bank Management System - Main Entry Point
- * Console-based UI with login, admin panel, and customer panel
- *
- * Concepts used: OOP, Collections, Exception Handling, JDBC, Inheritance
- * Author: [Your Name]
- */
 public class Main {
 
     static Scanner sc = new Scanner(System.in);
