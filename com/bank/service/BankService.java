@@ -141,6 +141,11 @@ public class BankService {
     public boolean transfer(String fromAccount, String toAccount, double amount) {
         if (amount <= 0) { System.out.println("✘ Invalid transfer amount."); return false; }
 
+        if (fromAccount == null || toAccount == null || fromAccount.equals(toAccount)) {
+            System.out.println("Invalid transfer: source and destination must be different accounts.");
+            return false;
+        }
+
         Account from = accountDAO.getAccount(fromAccount);
         Account to = accountDAO.getAccount(toAccount);
 
