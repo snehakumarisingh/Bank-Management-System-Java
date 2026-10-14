@@ -122,6 +122,41 @@ public class AccountDAO {
         }
     }
 
+// Transfer money between two acc automatically
+public boolean transferBalance(String fromAccount, String toAccount,
+                               double amount) throws SQLException {
+
+    String debitSql =
+            "UPDATE accounts SET balance = balance - ? " +
+            "WHERE account_number = ? " +
+            "AND status = 'active' AND balance >= ?";
+
+    String creditSql =
+            "UPDATE accounts SET balance = balance + ? " +
+            "WHERE account_number = ? AND status = 'active'";
+
+    try (PreparedStatement debit = conn.prepareStatement(debitSql);
+         PreparedStatement credit = conn.prepareStatement(creditSql)) {
+
+        debit.setDouble(1, amount);
+        debit.setString(2, fromAccount);
+        debit.setDouble(3, amount);
+
+        if (debit.executeUpdate() != 1) {
+            return false;
+        }
+
+        credit.setDouble(1, amount);
+        credit.setString(2, toAccount);
+
+        if (credit.executeUpdate() != 1) {
+            return false;
+        }
+
+        return true;
+    }
+}
+
     // Close account
     public boolean closeAccount(String accountNumber) {
         String sql = "UPDATE accounts SET status = 'closed' WHERE account_number = ?";

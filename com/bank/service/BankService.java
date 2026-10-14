@@ -5,10 +5,10 @@ import com.bank.model.*;
 
 import java.util.List;
 
-/**
- * Bank Service Class
- * Contains all business logic: deposit, withdraw, transfer, etc.
- */
+import com.bank.util.DBConnection;
+import java.sql.Connection;
+import java.sql.SQLException;
+
 public class BankService {
 
     private AccountDAO accountDAO;
@@ -138,46 +138,106 @@ public class BankService {
         return false;
     }
 
-    public boolean transfer(String fromAccount, String toAccount, double amount) {
-        if (amount <= 0) { System.out.println("✘ Invalid transfer amount."); return false; }
+public boolean transfer(String fromAccount, String toAccount,
+                        double amount) {
 
-        if (fromAccount == null || toAccount == null || fromAccount.equals(toAccount)) {
-            System.out.println("Invalid transfer: source and destination must be different accounts.");
-            return false;
-        }
+    if (amount <= 0) {
+        System.out.println("Invalid transfer amount.");
+        return false;
+    }
+
+    if (fromAccount == null || toAccount == null
+            || fromAccount.equals(toAccount)) {
+        System.out.println(
+                "Source and destination must be different accounts.");
+        return false;
+    }
+
+    Connection conn = DBConnection.getConnection();
+
+    if (conn == null) {
+        System.out.println("Database connection failed.");
+        return false;
+    }
+
+    try {
+        conn.setAutoCommit(false);
 
         Account from = accountDAO.getAccount(fromAccount);
         Account to = accountDAO.getAccount(toAccount);
 
-        if (from == null || !from.getStatus().equals("active")) {
-            System.out.println("✘ Source account not found or inactive.");
+        if (from == null || to == null
+                || !"active".equals(from.getStatus())
+                || !"active".equals(to.getStatus())) {
+            conn.rollback();
+            System.out.println("Account not found or inactive.");
             return false;
         }
-        if (to == null || !to.getStatus().equals("active")) {
-            System.out.println("✘ Destination account not found or inactive.");
-            return false;
-        }
+
         if (from.getBalance() < amount) {
-            System.out.printf("✘ Insufficient balance. Available: ₹%.2f%n", from.getBalance());
+            conn.rollback();
+            System.out.println("Insufficient balance.");
+            return false;
+        }
+
+        boolean balancesUpdated =
+                accountDAO.transferBalance(
+                        fromAccount, toAccount, amount);
+
+        if (!balancesUpdated) {
+            conn.rollback();
+            System.out.println(
+                    "Transfer failed. Changes rolled back.");
             return false;
         }
 
         double newFromBalance = from.getBalance() - amount;
         double newToBalance = to.getBalance() + amount;
 
-        if (accountDAO.updateBalance(fromAccount, newFromBalance) &&
-            accountDAO.updateBalance(toAccount, newToBalance)) {
+        boolean debitRecorded = transactionDAO.recordTransaction(
+                new Transaction(fromAccount, "transfer", amount,
+                        newFromBalance, "Transfer to " + toAccount));
 
-            transactionDAO.recordTransaction(new Transaction(fromAccount, "transfer",
-                    amount, newFromBalance, "Transfer to " + toAccount));
-            transactionDAO.recordTransaction(new Transaction(toAccount, "transfer",
-                    amount, newToBalance, "Transfer from " + fromAccount));
+        boolean creditRecorded = debitRecorded
+                && transactionDAO.recordTransaction(
+                        new Transaction(toAccount, "transfer", amount,
+                                newToBalance, "Transfer from " + fromAccount));
 
-            System.out.printf("✔ ₹%.2f transferred from %s to %s%n", amount, fromAccount, toAccount);
-            return true;
+        if (!debitRecorded || !creditRecorded) {
+            conn.rollback();
+            System.out.println(
+                    "Transaction history failed. Transfer rolled back.");
+            return false;
         }
+
+        conn.commit();
+
+        System.out.printf(
+                "Transfer successful: ₹%.2f from %s to %s%n",
+                amount, fromAccount, toAccount);
+
+        return true;
+
+    } catch (SQLException e) {
+        try {
+            conn.rollback();
+        } catch (SQLException rollbackError) {
+            System.out.println(
+                    "Rollback failed: " + rollbackError.getMessage());
+        }
+
+        System.out.println("Transfer failed: " + e.getMessage());
         return false;
+
+    } finally {
+        try {
+            conn.setAutoCommit(true);
+        } catch (SQLException e) {
+            System.out.println(
+                    "Could not reset auto-commit: " + e.getMessage());
+        }
     }
+}
 
     // ─── STATEMENTS ──────────────────────────────────────────────────
 
